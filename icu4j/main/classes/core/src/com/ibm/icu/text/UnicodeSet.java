@@ -3409,8 +3409,8 @@ public class UnicodeSet extends UnicodeFilter implements Iterable<String>, Compa
      * property alias, or a special ID.  Special IDs are matched
      * loosely and correspond to the following sets:
      *
-     * "ANY" = [\u0000-\U0010FFFF],
-     * "ASCII" = [\u0000-\u007F].
+     * "ANY" = [\\u0000-\\U0010FFFF],
+     * "ASCII" = [\\u0000-\\u007F].
      *
      * @param valueAlias a value alias, either short or long.  The
      * name is matched loosely.  See PropertyValueAliases.txt for
@@ -3866,7 +3866,6 @@ public class UnicodeSet extends UnicodeFilter implements Iterable<String>, Compa
             int n = getRangeCount();
             int result;
             StringBuilder full = new StringBuilder();
-            int locCache[] = new int[1];
 
             for (int i=0; i<n; ++i) {
                 int start = getRangeStart(i);
@@ -3881,13 +3880,13 @@ public class UnicodeSet extends UnicodeFilter implements Iterable<String>, Compa
                     // add case mappings
                     // (does not add long s for regular s, or Kelvin for k, for example)
                     for (int cp=start; cp<=end; ++cp) {
-                        result = csp.toFullLower(cp, null, full, root, locCache);
+                        result = csp.toFullLower(cp, null, full, UCaseProps.LOC_ROOT);
                         addCaseMapping(foldSet, result, full);
 
-                        result = csp.toFullTitle(cp, null, full, root, locCache);
+                        result = csp.toFullTitle(cp, null, full, UCaseProps.LOC_ROOT);
                         addCaseMapping(foldSet, result, full);
 
-                        result = csp.toFullUpper(cp, null, full, root, locCache);
+                        result = csp.toFullUpper(cp, null, full, UCaseProps.LOC_ROOT);
                         addCaseMapping(foldSet, result, full);
 
                         result = csp.toFullFolding(cp, full, 0);
@@ -3906,6 +3905,7 @@ public class UnicodeSet extends UnicodeFilter implements Iterable<String>, Compa
                 } else {
                     BreakIterator bi = BreakIterator.getWordInstance(root);
                     for (String str : strings) {
+                        // TODO: call lower-level functions
                         foldSet.add(UCharacter.toLowerCase(root, str));
                         foldSet.add(UCharacter.toTitleCase(root, str, bi));
                         foldSet.add(UCharacter.toUpperCase(root, str));
