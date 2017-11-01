@@ -413,13 +413,22 @@ public abstract class NumberFormat extends UFormat {
 
     /**
      * Returns a Long if possible (e.g., within the range [Long.MIN_VALUE,
-     * Long.MAX_VALUE] and with no decimals), otherwise a Double.
-     * If IntegerOnly is set, will stop at a decimal
+     * Long.MAX_VALUE] and with no decimals); otherwise, returns another type,
+     * such as a BigDecimal, BigInteger, or Double. The return type is not
+     * guaranteed other than for the Long case.
+     *
+     * <p>If IntegerOnly is set, will stop at a decimal
      * point (or equivalent; e.g., for rational numbers "1 2/3", will stop
      * after the 1).
-     * Does not throw an exception; if no object can be parsed, index is
+     *
+     * <p>Does not throw an exception; if no object can be parsed, index is
      * unchanged!
+     *
+     * <p>For more detail on parsing, see the "Parsing" header in the class
+     * documentation of {@link DecimalFormat}.
+     *
      * @see #isParseIntegerOnly
+     * @see DecimalFormat#setParseBigDecimal
      * @see java.text.Format#parseObject(String, ParsePosition)
      * @stable ICU 2.0
      */
@@ -1484,6 +1493,22 @@ public abstract class NumberFormat extends UFormat {
      */
     @Deprecated
     public static String getPatternForStyle(ULocale forLocale, int choice) {
+        NumberingSystem ns = NumberingSystem.getInstance(forLocale);
+        String nsName = ns.getName();
+        return getPatternForStyleAndNumberingSystem(forLocale, nsName, choice);
+    }
+
+    /**
+     * Returns the pattern for the provided locale, numbering system, and choice.
+     * @param forLocale the locale of the data.
+     * @param nsName The name of the numbering system, like "latn".
+     * @param choice the pattern format.
+     * @return the pattern
+     * @internal
+     * @deprecated This API is ICU internal only.
+     */
+    @Deprecated
+    public static String getPatternForStyleAndNumberingSystem(ULocale forLocale, String nsName, int choice) {
         /* for ISOCURRENCYSTYLE and PLURALCURRENCYSTYLE,
          * the pattern is the same as the pattern of CURRENCYSTYLE
          * but by replacing the single currency sign with
@@ -1523,10 +1548,9 @@ public abstract class NumberFormat extends UFormat {
 
         ICUResourceBundle rb = (ICUResourceBundle)UResourceBundle.
         getBundleInstance(ICUData.ICU_BASE_NAME, forLocale);
-        NumberingSystem ns = NumberingSystem.getInstance(forLocale);
 
         String result = rb.findStringWithFallback(
-                    "NumberElements/" + ns.getName() + "/patterns/" + patternKey);
+                    "NumberElements/" + nsName + "/patterns/" + patternKey);
         if (result == null) {
             result = rb.getStringWithFallback("NumberElements/latn/patterns/" + patternKey);
         }

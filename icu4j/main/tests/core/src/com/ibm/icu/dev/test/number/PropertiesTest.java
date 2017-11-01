@@ -21,22 +21,23 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Test;
 
 import com.ibm.icu.dev.test.serializable.SerializableTestUtility;
+import com.ibm.icu.impl.number.DecimalFormatProperties;
+import com.ibm.icu.impl.number.Padder.PadPosition;
 import com.ibm.icu.impl.number.Parse.GroupingMode;
 import com.ibm.icu.impl.number.Parse.ParseMode;
-import com.ibm.icu.impl.number.PatternString;
-import com.ibm.icu.impl.number.Properties;
-import com.ibm.icu.impl.number.formatters.CurrencyFormat.CurrencyStyle;
-import com.ibm.icu.impl.number.formatters.PaddingFormat.PadPosition;
+import com.ibm.icu.impl.number.PatternStringParser;
 import com.ibm.icu.text.CompactDecimalFormat.CompactStyle;
 import com.ibm.icu.text.CurrencyPluralInfo;
-import com.ibm.icu.text.DecimalFormat.SignificantDigitsMode;
 import com.ibm.icu.text.MeasureFormat.FormatWidth;
+import com.ibm.icu.text.PluralRules;
 import com.ibm.icu.util.Currency;
 import com.ibm.icu.util.Currency.CurrencyUsage;
 import com.ibm.icu.util.MeasureUnit;
@@ -46,8 +47,8 @@ public class PropertiesTest {
 
   @Test
   public void testBasicEquals() {
-    Properties p1 = new Properties();
-    Properties p2 = new Properties();
+    DecimalFormatProperties p1 = new DecimalFormatProperties();
+    DecimalFormatProperties p2 = new DecimalFormatProperties();
     assertEquals(p1, p2);
 
     p1.setPositivePrefix("abc");
@@ -60,14 +61,14 @@ public class PropertiesTest {
 
   @Test
   public void testFieldCoverage() {
-    Properties p0 = new Properties();
-    Properties p1 = new Properties();
-    Properties p2 = new Properties();
-    Properties p3 = new Properties();
-    Properties p4 = new Properties();
+    DecimalFormatProperties p0 = new DecimalFormatProperties();
+    DecimalFormatProperties p1 = new DecimalFormatProperties();
+    DecimalFormatProperties p2 = new DecimalFormatProperties();
+    DecimalFormatProperties p3 = new DecimalFormatProperties();
+    DecimalFormatProperties p4 = new DecimalFormatProperties();
 
     Set<Integer> hashCodes = new HashSet<Integer>();
-    Field[] fields = Properties.class.getDeclaredFields();
+    Field[] fields = DecimalFormatProperties.class.getDeclaredFields();
     for (Field field : fields) {
       if (Modifier.isStatic(field.getModifiers())) {
         continue;
@@ -80,7 +81,7 @@ public class PropertiesTest {
       String setterName = "set" + fieldNamePascalCase;
       Method getter, setter;
       try {
-        getter = Properties.class.getMethod(getterName);
+        getter = DecimalFormatProperties.class.getMethod(getterName);
         assertEquals(
             "Getter does not return correct type", field.getType(), getter.getReturnType());
       } catch (NoSuchMethodException e) {
@@ -91,10 +92,10 @@ public class PropertiesTest {
         continue;
       }
       try {
-        setter = Properties.class.getMethod(setterName, field.getType());
+        setter = DecimalFormatProperties.class.getMethod(setterName, field.getType());
         assertEquals(
             "Method " + setterName + " does not return correct type",
-            Properties.class,
+            DecimalFormatProperties.class,
             setter.getReturnType());
       } catch (NoSuchMethodException e) {
         fail("Could not find method " + setterName + " for field " + field);
@@ -156,7 +157,7 @@ public class PropertiesTest {
         hashCodes.add(p1.hashCode());
 
         // Check for clone behavior
-        Properties copy = p1.clone();
+        DecimalFormatProperties copy = p1.clone();
         assertEquals("Field " + field + " did not get copied in clone", p1, copy);
         assertEquals(p1.hashCode(), copy.hashCode());
         assertEquals(getter.invoke(p1), getter.invoke(copy));
@@ -239,11 +240,6 @@ public class PropertiesTest {
       ULocale[] locales = ULocale.getAvailableLocales();
       return CurrencyPluralInfo.getInstance(locales[seed % locales.length]);
 
-    } else if (type == CurrencyStyle.class) {
-      if (seed == 0) return null;
-      CurrencyStyle[] values = CurrencyStyle.values();
-      return values[seed % values.length];
-
     } else if (type == CurrencyUsage.class) {
       if (seed == 0) return null;
       CurrencyUsage[] values = CurrencyUsage.values();
@@ -258,6 +254,20 @@ public class PropertiesTest {
       if (seed == 0) return null;
       FormatWidth[] values = FormatWidth.values();
       return values[seed % values.length];
+
+    } else if (type == Map.class) {
+      // Map<String,Map<String,String>> for compactCustomData property
+      if (seed == 0) return null;
+      Map<String, Map<String, String>> outer = new HashMap<String, Map<String, String>>();
+      Map<String, String> inner = new HashMap<String, String>();
+      inner.put("one", "0 thousand");
+      StringBuilder magnitudeKey = new StringBuilder();
+      magnitudeKey.append("1000");
+      for (int i = 0; i < seed % 9; i++) {
+        magnitudeKey.append("0");
+      }
+      outer.put(magnitudeKey.toString(), inner);
+      return outer;
 
     } else if (type == MathContext.class) {
       if (seed == 0) return null;
@@ -279,14 +289,14 @@ public class PropertiesTest {
       ParseMode[] values = ParseMode.values();
       return values[seed % values.length];
 
+    } else if (type == PluralRules.class) {
+      if (seed == 0) return null;
+      ULocale[] locales = PluralRules.getAvailableULocales();
+      return PluralRules.forLocale(locales[seed % locales.length]);
+
     } else if (type == RoundingMode.class) {
       if (seed == 0) return null;
       RoundingMode[] values = RoundingMode.values();
-      return values[seed % values.length];
-
-    } else if (type == SignificantDigitsMode.class) {
-      if (seed == 0) return null;
-      SignificantDigitsMode[] values = SignificantDigitsMode.values();
       return values[seed % values.length];
 
     } else {
@@ -297,10 +307,10 @@ public class PropertiesTest {
 
   @Test
   public void TestBasicSerializationRoundTrip() throws IOException, ClassNotFoundException {
-    Properties props0 = new Properties();
+    DecimalFormatProperties props0 = new DecimalFormatProperties();
 
     // Write values to some of the fields
-    PatternString.parseToExistingProperties("A-**####,#00.00#b¤", props0);
+    PatternStringParser.parseToExistingProperties("A-**####,#00.00#b¤", props0);
 
     // Write to byte stream
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -314,7 +324,7 @@ public class PropertiesTest {
     ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(bytes));
     Object obj = ois.readObject();
     ois.close();
-    Properties props1 = (Properties) obj;
+    DecimalFormatProperties props1 = (DecimalFormatProperties) obj;
 
     // Test equality
     assertEquals("Did not round-trip through serialization", props0, props1);
@@ -326,15 +336,31 @@ public class PropertiesTest {
     @Override
     public Object[] getTestObjects() {
       return new Object[] {
-        new Properties(),
-        PatternString.parseToProperties("x#,##0.00%"),
-        new Properties().setCompactStyle(CompactStyle.LONG).setMinimumExponentDigits(2)
+        new DecimalFormatProperties(),
+        PatternStringParser.parseToProperties("x#,##0.00%"),
+        new DecimalFormatProperties().setCompactStyle(CompactStyle.LONG).setMinimumExponentDigits(2)
       };
     }
 
     @Override
     public boolean hasSameBehavior(Object a, Object b) {
       return a.equals(b);
+    }
+  }
+
+  /** Handler for the ICU 59 class named "Properties" before it was renamed to "DecimalFormatProperties". */
+  public static class ICU59PropertiesHandler implements SerializableTestUtility.Handler {
+
+    @Override
+    public Object[] getTestObjects() {
+      return new Object[] {
+        new com.ibm.icu.impl.number.Properties()
+      };
+    }
+
+    @Override
+    public boolean hasSameBehavior(Object a, Object b) {
+      return true;
     }
   }
 }

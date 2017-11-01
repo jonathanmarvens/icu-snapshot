@@ -6,14 +6,23 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 
-import com.ibm.icu.impl.number.Rounder.IBasicRoundingProperties;
-
 /** @author sffc */
 public class RoundingUtils {
 
   public static final int SECTION_LOWER = 1;
   public static final int SECTION_MIDPOINT = 2;
   public static final int SECTION_UPPER = 3;
+
+  /**
+   * The default rounding mode.
+   */
+  public static final RoundingMode DEFAULT_ROUNDING_MODE = RoundingMode.HALF_EVEN;
+
+  /**
+   * The maximum number of fraction places, integer numerals, or significant digits.
+   * TODO: This does not feel like the best home for this value.
+   */
+  public static final int MAX_INT_FRAC_SIG = 100;
 
   /**
    * Converts a rounding mode and metadata about the quantity being rounded to a boolean determining
@@ -117,13 +126,13 @@ public class RoundingUtils {
   private static final MathContext[] MATH_CONTEXT_BY_ROUNDING_MODE_UNLIMITED =
       new MathContext[RoundingMode.values().length];
 
-  private static final MathContext[] MATH_CONTEXT_BY_ROUNDING_MODE_16_DIGITS =
+  private static final MathContext[] MATH_CONTEXT_BY_ROUNDING_MODE_34_DIGITS =
       new MathContext[RoundingMode.values().length];
 
   static {
-    for (int i = 0; i < MATH_CONTEXT_BY_ROUNDING_MODE_16_DIGITS.length; i++) {
+    for (int i = 0; i < MATH_CONTEXT_BY_ROUNDING_MODE_34_DIGITS.length; i++) {
       MATH_CONTEXT_BY_ROUNDING_MODE_UNLIMITED[i] = new MathContext(0, RoundingMode.valueOf(i));
-      MATH_CONTEXT_BY_ROUNDING_MODE_16_DIGITS[i] = new MathContext(16);
+      MATH_CONTEXT_BY_ROUNDING_MODE_34_DIGITS[i] = new MathContext(34);
     }
   }
 
@@ -135,7 +144,7 @@ public class RoundingUtils {
    * @param properties The property bag.
    * @return A {@link MathContext}. Never null.
    */
-  public static MathContext getMathContextOrUnlimited(IBasicRoundingProperties properties) {
+  public static MathContext getMathContextOrUnlimited(DecimalFormatProperties properties) {
     MathContext mathContext = properties.getMathContext();
     if (mathContext == null) {
       RoundingMode roundingMode = properties.getRoundingMode();
@@ -147,19 +156,30 @@ public class RoundingUtils {
 
   /**
    * Gets the user-specified math context out of the property bag. If there is none, falls back to a
-   * math context with 16 digits of precision (the 64-bit IEEE 754R default) and the user-specified
+   * math context with 34 digits of precision (the 128-bit IEEE 754R default) and the user-specified
    * rounding mode, which defaults to HALF_EVEN (the IEEE 754R default).
    *
    * @param properties The property bag.
    * @return A {@link MathContext}. Never null.
    */
-  public static MathContext getMathContextOr16Digits(IBasicRoundingProperties properties) {
+  public static MathContext getMathContextOr34Digits(DecimalFormatProperties properties) {
     MathContext mathContext = properties.getMathContext();
     if (mathContext == null) {
       RoundingMode roundingMode = properties.getRoundingMode();
       if (roundingMode == null) roundingMode = RoundingMode.HALF_EVEN;
-      mathContext = MATH_CONTEXT_BY_ROUNDING_MODE_16_DIGITS[roundingMode.ordinal()];
+      mathContext = MATH_CONTEXT_BY_ROUNDING_MODE_34_DIGITS[roundingMode.ordinal()];
     }
     return mathContext;
+  }
+
+  /**
+   * Gets a MathContext with unlimited precision and the specified RoundingMode. Equivalent to "new
+   * MathContext(0, roundingMode)", but pulls from a singleton to prevent object thrashing.
+   *
+   * @param roundingMode The {@link RoundingMode} to use.
+   * @return The corresponding {@link MathContext}.
+   */
+  public static MathContext mathContextUnlimited(RoundingMode roundingMode) {
+    return MATH_CONTEXT_BY_ROUNDING_MODE_UNLIMITED[roundingMode.ordinal()];
   }
 }
